@@ -5,6 +5,10 @@
 > it produces, and the artifacts it depends on show up as events — with green
 > checks when inputs are ready, red marks when they're not.
 
+**[Website](https://plush-island-rj2a.here.now/)** ·
+**[Live demo](https://plush-island-rj2a.here.now/demo/index.html)** ·
+**[GitHub](https://github.com/brandongilchrist/almanac)**
+
 Almanac turns scheduled agent work into **standard iCalendar feeds**
 (`RFC 5545` / `RFC 7986` / `RFC 9253`). It is **not** a new calendar UI, **not**
 a new cron engine, and **not** a new agent runtime. It is the missing
