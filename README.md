@@ -43,7 +43,7 @@ Download `Almanac.dmg` (macOS) / `.msi` (Windows) / `.AppImage` (Linux) from
 ### CLI / server / MCP (one line)
 
 ```bash
-curl -fsSL https://almanac.dev/install.sh | bash
+curl -fsSL https://github.com/brandongilchrist/almanac/raw/main/scripts/install.sh | bash
 ```
 
 Or with Homebrew:
