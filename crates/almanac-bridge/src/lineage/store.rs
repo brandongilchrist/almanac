@@ -52,8 +52,8 @@ impl InMemoryManifestStore {
         } else {
             bucket.push(manifest);
         }
-        // Keep newest-first.
-        bucket.sort_by(|a, b| b.materialized_at.cmp(&a.materialized_at));
+        // Keep newest-first (descending by materialized_at).
+        bucket.sort_by_key(|m| std::cmp::Reverse(m.materialized_at));
     }
 
     /// Bulk-insert manifests.
