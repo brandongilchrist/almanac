@@ -1,4 +1,5 @@
 [toolchain]
-channel = "1.83"
+# icalendar 0.17 + ICU deps require rustc 1.88. Pinned for CI determinism.
+channel = "1.88"
 components = ["rustfmt", "clippy"]
 profile = "minimal"
