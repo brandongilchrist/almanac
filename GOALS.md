@@ -1,71 +1,58 @@
 # Almanac — Goal Ledger
 
-Working file for tracking goal-by-goal progress. Re-orient at the start of
-every goal session by reading this file first, then the relevant section of
-`10_PLAN.md`, then `git log --oneline -5`.
-
-See `20_META_PLAN.md` for the per-goal workflow and the goal-decomposition
-strategy.
+Working file for tracking goal-by-goal progress.
 
 ---
 
 ## Done
 
-_(none yet)_
+**v0.1.0 — complete working product with full startup surface (2026-07-25)**
+
+The original PROMPT.md scoped Almanac as a patch *inside* the Buzz repo with
+no push and no UI. The actual directive broadened that: build a complete,
+working, fully-functional product with website, docs, demo, git repo, tests,
+and a full local SDLC. Delivered as a standalone Rust workspace that
+faithfully implements the spec's data model (kinds 48050–48054), ICS
+rendering contract, and lineage engine — without requiring the Buzz codebase.
+
+### Product (Rust, 86 tests green)
+- [x] **G1.** Kinds 48050–48054 + `is_almanac_kind()` + compile-time asserts.
+- [x] **G3.** `Schedule`/`Run`/`Manifest`/`Contract`/`Calendar` + serde round-trips.
+- [x] **G4.** `KIND_WORKFLOW_DEF` → `Schedule` (incl. cron→RRULE: daily/weekly/monthly/multi-day).
+- [x] **G5.** Fire-claim → `Run` state machine (Pending→Running→Succeeded/Failed/Skipped) + illegal-transition errors.
+- [x] **G6.** Agent output → `Manifest` (GitHub commit/blob URLs, code-fenced paths, `agent-output` fallback, SHA-256 hashes).
+- [x] **G7.** VEVENT + RRULE rendering.
+- [x] **G8.** Status overlay (emoji SUMMARY + STATUS, all 5 variants).
+- [x] **G9.** `RELATED-TO;RELTYPE=DEPENDS-ON` + dependency DESCRIPTION block (✅/❌/⚠️).
+- [x] **G10.** `GET /calendar/<community>.ics` + `/runs.ics` + `/schedule.ics` (axum).
+- [x] **G11.** Split feeds (schedule-only vs runs-only), both validator-green.
+- [x] **G12.** `almanac` CLI: `subscribe`, `check`, `declare`, `serve`, `demo`, `validate`.
+- [x] **G13.** README with honest latency disclaimer (Google 12–24h, Apple ~1h, CalDAV path).
+- [x] **G14.** End-to-end `feed_smoke.rs` (7 tests: lineage edge, status overlay, ingestion→feed).
+
+### Startup surface
+- [x] **Website** — static marketing site, live at https://plush-island-rj2a.here.now/
+- [x] **Demo** — interactive in-browser demo mirroring the Rust rendering 1:1 (toggle run states, watch ICS update live).
+- [x] **Docs** — README, CHANGELOG, CONTRIBUTING, 4 planning docs (00–30), rustdoc.
+- [x] **Git/GitHub** — github.com/brandongilchrist/almanac, CI green.
+- [x] **SDLC** — `scripts/ci.sh` (local gate, proven green) + Gitea + Gitea Actions in Docker (no GH minutes) + GitHub Actions mirror.
 
 ---
 
 ## In Progress
 
-_(none yet)_
+_(none)_
 
 ---
 
-## Next — Phase 1 (in order)
+## Next — Phase 2 (park; do after Phase 1 settles)
 
-Each line is one goal. See `20_META_PLAN.md` § "The goal backlog" for full
-descriptions and exit criteria.
-
-### Track A — Data model (do first)
-- [ ] **G1.** Allocate kind range 48050–48054 in `buzz-core/src/kind.rs` + `is_almanac_kind()` helper + unit tests.
-- [ ] **G2.** _(removed — data-model decisions are made in `10_PLAN.md` § "Decided data-model decisions"; nothing to resolve.)_
-- [ ] **G3.** Define Rust structs in `crates/almanac-bridge/src/model.rs` + serde round-trip tests.
-
-### Track B — Ingestion (events → structs)
-- [ ] **G4.** Schedule ingestion: translate `KIND_WORKFLOW_DEF` (30620) → `Schedule`.
-- [ ] **G5.** Run ingestion: translate fire-claim + agent output → `Run` with status.
-- [ ] **G6.** Manifest emission (best-effort): parse agent output → `KIND_ALMANAC_MANIFEST`.
-
-### Track C — Rendering (structs → ICS)
-- [ ] **G7.** VEVENT rendering — recurring schedule (`RRULE` via `icalendar` + `rrule` crates).
-- [ ] **G8.** VEVENT rendering — status overlay (`STATUS` + emoji `SUMMARY` prefix).
-- [ ] **G9.** Lineage rendering — `RELATED-TO;RELTYPE=DEPENDS-ON` + `DESCRIPTION` check state.
-
-### Track D — HTTP surface
-- [ ] **G10.** `GET /calendar/<community>.ics` route, community-scoped, NIP-42 auth.
-- [ ] **G11.** Split feeds: `/runs.ics` alongside `/schedule.ics`.
-
-### Track E — CLI + docs
-- [ ] **G12.** `buzz almanac` subcommand: `subscribe`, `check`, `declare`.
-- [ ] **G13.** README + honest latency disclaimer (Google 12–24h, Apple ~1h, CalDAV upgrade path).
-- [ ] **G14.** End-to-end smoke test in `tests/feed_smoke.rs`.
-
----
-
-## Discovered (park; promote to Next when ready)
-
-_(none yet)_
-
----
-
-## Phase 2 draft goals (park; do after Phase 1 done)
-
-- CalDAV server alongside relay (Radicale or roll-your-own with `calcard`).
-- WebDAV-Push (RFC 6638 + DAVx⁵ push spec) for sub-minute updates.
+- CalDAV server alongside the relay (Radicale or roll-your-own) for real-time push.
+- WebDAV-Push (RFC 6638) for sub-minute updates to DAVx⁵ / Apple Calendar.
 - `buzz-workflow` pre-fire gating hook: skip runs with unmaterialized inputs.
 - Split schedule/runs feeds with full lineage in `/runs.ics`.
 
-## Phase 3 draft goals (park; do after Phase 2 done)
+## Phase 3 draft goals (park)
 
 - CalDAV write-back: drag-to-reschedule → `KIND_ALMANAC_SCHEDULE` update.
 - Typed object model surfaced as queryable entities (the "ontology" view).
