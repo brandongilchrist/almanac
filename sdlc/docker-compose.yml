@@ -47,25 +47,27 @@ services:
       gitea:
         condition: service_healthy
     environment:
-      # Register against the Gitea instance using the token below.
       CONFIG_FILE: /config.yaml
       GITEA_INSTANCE_URL: http://gitea:3000
-      GITEA_RUNNER_REGISTRATION_TOKEN: "ALMANAC_DEV_TOKEN_CHANGE_ME"
+      # Filled in by up.sh after it creates the repo.
+      GITEA_RUNNER_REGISTRATION_TOKEN: "${RUNNER_TOKEN:-placeholder}"
     volumes:
       - ./runner-config.yaml:/config.yaml:ro
       - ./runner-data:/data
       # Docker socket so the runner can spin up job containers.
       - /var/run/docker.sock:/var/run/docker.sock
+    # The entrypoint registers (idempotently) then starts the daemon.
+    # Labels use the colon form: ubuntu-latest:docker://image:tag
     entrypoint:
       - /bin/sh
       - -c
       - |
-        if [ ! -f /data/.registered ]; then
+        if [ ! -f /data/.runner ]; then
           act_runner register --no-interactive \
             --instance "$${GITEA_INSTANCE_URL}" \
             --token "$${GITEA_RUNNER_REGISTRATION_TOKEN}" \
-            --name almanac-runner --labels ubuntu-latest=docker://catthehacker/ubuntu:act-latest \
-          && touch /data/.registered
+            --name almanac-runner \
+            --labels "ubuntu-latest:docker://catthehacker/ubuntu:act-latest"
         fi
         act_runner daemon
 

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Boot the local SDLC: Gitea + Gitea Actions runner. Creates the admin user,
-# the `almanac/almanac` repo, and registers the runner — all idempotent.
+# Boot the local SDLC: Gitea + Gitea Actions runner. Idempotent.
 #
-# After this completes, run:  sdlc/push.sh
-# Then open:                   http://localhost:3000  (almanac / almanac)
+# Creates the admin user (almanac/almanac), the almanac/almanac repo,
+# registers the act_runner against it, and adds a `local` git remote.
+#
+# After this completes:  sdlc/push.sh    (commit + push → triggers CI)
+# Web UI:                http://localhost:3000   (almanac / almanac)
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -19,7 +21,7 @@ say() { printf "${B}${Y}▶ %s${N}\n" "$1"; }
 ok()  { printf "${G}✓ %s${N}\n" "$1"; }
 die() { printf "${R}✗ %s${N}\n" "$1"; exit 1; }
 
-# Requires docker (Docker Desktop on macOS puts the CLI here if not on PATH).
+# Locate docker (Docker Desktop on macOS).
 if ! command -v docker >/dev/null 2>&1; then
   if [ -x "/Applications/Docker.app/Contents/Resources/bin/docker" ]; then
     export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
@@ -42,21 +44,25 @@ for i in $(seq 1 60); do
 done
 
 say "Ensuring admin user '$ADMIN' exists"
-# Login as admin (created on first boot via GITEA__admin__ env); if that fails,
-# try to create via CLI inside the container.
-TOKEN=$(curl -fsS -u "$ADMIN:$PASS" -X GET "$GITEA/api/v1/users/$ADMIN/token" \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"bootstrap","scopes":["all"]}' 2>/dev/null | grep -o '"sha1":"[^"]*"' | cut -d'"' -f4 || true)
-
-if [ -z "$TOKEN" ]; then
-  say "Creating admin user via gitea CLI"
-  docker exec almanac-gitea gitea admin user create \
+# Create via CLI as the container's `git` user (gitea refuses to run as root).
+# `user list` prints a table whose username is in the second whitespace column.
+if ! docker exec -u git almanac-gitea gitea admin user list 2>/dev/null | awk 'NR>1{print $2}' | grep -qx "$ADMIN"; then
+  docker exec -u git almanac-gitea gitea admin user create \
     --username "$ADMIN" --password "$PASS" --email dev@almanac.local \
     --admin --must-change-password=false >/dev/null 2>&1 || true
-  TOKEN=$(curl -fsS -u "$ADMIN:$PASS" -X GET "$GITEA/api/v1/users/$ADMIN/token" \
-    -H 'Content-Type: application/json' \
-    -d '{"name":"bootstrap","scopes":["all"]}' | grep -o '"sha1":"[^"]*"' | cut -d'"' -f4)
+  ok "admin user created"
+else
+  # Ensure the password is the expected one (idempotent on re-runs).
+  docker exec -u git almanac-gitea gitea admin user change-password \
+    --username "$ADMIN" --password "$PASS" >/dev/null 2>&1 || true
+  ok "admin user exists"
 fi
+
+say "Obtaining an API token"
+TOKEN=$(curl -fsS -u "$ADMIN:$PASS" -X POST "$GITEA/api/v1/users/$ADMIN/tokens" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"bootstrap-'$(date +%s)'","scopes":["all"]}' \
+  | grep -o '"sha1":"[^"]*"' | cut -d'"' -f4)
 [ -n "$TOKEN" ] || die "could not obtain an API token"
 ok "API token acquired"
 
@@ -70,34 +76,32 @@ else
   ok "repo created"
 fi
 
-say "Registering the act_runner"
+say "Fetching runner registration token"
 RUNNER_TOKEN=$(curl -fsS -H "Authorization: token $TOKEN" \
-  -X GET "$GITEA/api/v1/repos/$REPO_OWNER/$REPO_NAME/actions/runners/registration-token" \
+  "$GITEA/api/v1/repos/$REPO_OWNER/$REPO_NAME/actions/runners/registration-token" \
   | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
-[ -n "$RUNNER_TOKEN" ] || die "could not fetch runner registration token"
+[ -n "$RUNNER_TOKEN" ] || die "could not fetch runner registration token (Actions enabled?)"
 
-# Register (idempotent — skip if already registered).
-if docker exec almanac-runner test -f /data/.registered 2>/dev/null; then
-  ok "runner already registered"
-else
-  docker exec -e CONFIG_FILE=/config.yaml almanac-runner act_runner register --no-interactive \
-    --instance http://gitea:3000 --token "$RUNNER_TOKEN" \
-    --name almanac-runner --labels ubuntu-latest=docker://catthehacker/ubuntu:act-latest \
-    >/dev/null 2>&1 || true
-  docker exec almanac-runner touch /data/.registered 2>/dev/null || true
-  docker compose restart runner >/dev/null 2>&1 || true
+say "Registering / restarting the act_runner"
+export RUNNER_TOKEN
+docker compose up -d --force-recreate runner >/dev/null 2>&1
+# Give the runner a moment to register + start the daemon.
+sleep 4
+if docker exec almanac-runner test -f /data/.runner 2>/dev/null; then
   ok "runner registered"
+else
+  printf "${Y}note:${N} runner still initializing — check http://localhost:3000/almanac/almanac/settings/actions/runners\n"
 fi
 
-# Set the local git remote so push.sh Just Works.
+# Add a `local` remote so push.sh works.
 cd ..
-if ! git remote get-url local >/dev/null 2>&1; then
-  if [ -d .git ]; then
+if [ -d .git ]; then
+  if ! git remote get-url local >/dev/null 2>&1; then
     git remote add local "http://$ADMIN:$PASS@localhost:3000/$REPO_OWNER/$REPO_NAME.git"
     ok "added git remote 'local'"
-  else
-    printf "${Y}note:${N} no .git yet — run scripts/init-git.sh first, then push.sh\n"
   fi
+else
+  printf "${Y}note:${N} no .git yet — run scripts/init-git.sh first, then push.sh\n"
 fi
 
 cat <<EOF
@@ -108,4 +112,5 @@ ${B}${G}SDLC ready.${N}
   Pipeline:   .gitea/workflows/ci.yml (fmt + clippy + test + build)
 
   Next: ${B}sdlc/push.sh${N}   # commit + push → triggers CI
+  Runs: http://localhost:3000/$REPO_OWNER/$REPO_NAME/actions
 EOF
