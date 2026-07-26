@@ -6,15 +6,25 @@
 //! replaced by queries against the relay's event store — the shapes are
 //! identical.
 
-use almanac_bridge::model::{Calendar, Contract, Manifest, Run, Schedule};
+use almanac_bridge::model::{Agent, Calendar, Contract, Manifest, Run, Schedule};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// The full Almanac state, keyed by community.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct State {
     inner: Arc<RwLock<RawState>>,
+    default_community: String,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(RawState::default())),
+            default_community: "demo".into(),
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -27,6 +37,8 @@ struct RawState {
     contracts: HashMap<String, Vec<Contract>>,
     /// community_id -> calendars.
     calendars: HashMap<String, Vec<Calendar>>,
+    /// community_id -> agents (keyed by agent_id). Agents are first-class principals.
+    agents: HashMap<String, HashMap<String, Agent>>,
     /// manifest store shared with the lineage engine.
     manifests: almanac_bridge::lineage::InMemoryManifestStore,
 }
@@ -35,6 +47,20 @@ impl State {
     /// Create an empty state.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Create a state with a default community (used by the server entrypoint
+    /// so the dashboard knows which community to show first).
+    pub fn with_default_community(default_community: String) -> Self {
+        Self {
+            default_community,
+            ..Self::default()
+        }
+    }
+
+    /// The default community for dashboard rendering.
+    pub fn default_community(&self) -> String {
+        self.default_community.clone()
     }
 
     /// Get a reference to the underlying manifest store (for lineage checks).
@@ -76,6 +102,13 @@ impl State {
             .entry(calendar.community_id.clone())
             .or_default()
             .push(calendar);
+    }
+
+    /// Register or update an agent identity (the principal owning schedules).
+    pub async fn upsert_agent(&self, agent: Agent) {
+        let mut w = self.inner.write().await;
+        let bucket = w.agents.entry(agent.community_id.clone()).or_default();
+        bucket.insert(agent.agent_id.clone(), agent);
     }
 
     /// Insert a manifest (delegates to the manifest store).
@@ -125,6 +158,32 @@ impl State {
         r.calendars.get(community).cloned().unwrap_or_default()
     }
 
+    /// Snapshot all agents in a community (sorted by id), with the count of
+    /// schedules each owns (computed from the schedule map).
+    pub async fn agents_for(&self, community: &str) -> Vec<Agent> {
+        let r = self.inner.read().await;
+        let mut out: Vec<Agent> = r
+            .agents
+            .get(community)
+            .map(|m| m.values().cloned().collect())
+            .unwrap_or_default();
+        out.sort_by(|a, b| a.agent_id.cmp(&b.agent_id));
+        out
+    }
+
+    /// Count how many schedules in `community` are owned by `agent_id`.
+    pub async fn schedule_count_for_agent(&self, community: &str, agent_id: &str) -> usize {
+        let r = self.inner.read().await;
+        r.schedules
+            .get(community)
+            .map(|m| {
+                m.values()
+                    .filter(|s| s.owner_agent_id.as_deref() == Some(agent_id))
+                    .count()
+            })
+            .unwrap_or(0)
+    }
+
     /// Clone the manifest store handle for async lineage checks.
     pub async fn manifest_store_async(&self) -> almanac_bridge::lineage::InMemoryManifestStore {
         self.inner.read().await.manifests.clone()
@@ -147,6 +206,7 @@ mod tests {
             dtstart: 1,
             calendar_group: "g".into(),
             color_category: None,
+            owner_agent_id: None,
             created_at: 1,
             updated_at: 1,
         }

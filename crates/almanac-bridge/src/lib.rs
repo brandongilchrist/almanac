@@ -38,4 +38,6 @@ pub mod source;
 pub use config::Config;
 pub use error::{IcalError, IngestError, LineageError};
 pub use kinds::*;
-pub use model::{Calendar, Contract, ContractRole, Manifest, Run, RunStatus, Schedule, SkipReason};
+pub use model::{
+    Agent, Calendar, Contract, ContractRole, Manifest, Run, RunStatus, Schedule, SkipReason,
+};

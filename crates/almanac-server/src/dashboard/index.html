@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Almanac — __COMMUNITY__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>__STYLES__</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">A</span>
+      <span class="brand-name">Almanac</span>
+      <span class="brand-sub">/ <strong id="community">__COMMUNITY__</strong></span>
+    </div>
+    <nav class="topnav">
+      <a href="#" id="tab-graph" class="tab active">Dependency graph</a>
+      <a href="#" id="tab-schedule" class="tab">Calendar</a>
+      <a href="#" id="tab-agents" class="tab">Agents</a>
+    </nav>
+    <div class="topactions">
+      <a class="btn-sub" id="subscribe" title="Subscribe in your calendar app">Subscribe ↗</a>
+      <a class="btn-api" href="/v1/communities/__COMMUNITY__/state" target="_blank">JSON</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Dependency graph (the centerpiece) -->
+    <section id="view-graph" class="view">
+      <div class="view-head">
+        <h2>Agent dependency graph</h2>
+        <p>Each schedule's inputs checked live. <span class="legend"><span class="lg lg-ok"></span>ready</span> <span class="legend"><span class="lg lg-bad"></span>missing</span> <span class="legend"><span class="lg lg-warn"></span>version mismatch</span></p>
+      </div>
+      <div id="dag" class="dag"></div>
+      <p id="dag-empty" class="empty" hidden>No schedules yet. Use the MCP server or POST /v1/schedules to create one.</p>
+    </section>
+
+    <!-- Calendar list view (web rendering of the ICS feed) -->
+    <section id="view-schedule" class="view" hidden>
+      <div class="view-head">
+        <h2>Calendar</h2>
+        <p>The same data the ICS feed renders in Google/Apple/Outlook, shown here directly.</p>
+      </div>
+      <div id="sched-list" class="sched-list"></div>
+    </section>
+
+    <!-- Agents panel -->
+    <section id="view-agents" class="view" hidden>
+      <div class="view-head">
+        <h2>Agents</h2>
+        <p>The principals that own schedules and produce artifacts. Agents are first-class — register one via the MCP <code>register_agent</code> tool.</p>
+      </div>
+      <div id="agents-list" class="agents-list"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>Almanac · agent-native calendar</span>
+    <span id="poll-status">live</span>
+  </footer>
+</div>
+<script>__SCRIPT__</script>
+</body>
+</html>

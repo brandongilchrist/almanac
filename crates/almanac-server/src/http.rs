@@ -38,7 +38,11 @@ pub type SharedState = AppState<State>;
 /// Build the full axum router.
 pub fn router(state: State) -> axum::Router {
     axum::Router::new()
-        // Calendar feeds.
+        // Visual calendar UI — the "Buzz for calendars" surface.
+        .route("/", get(get_dashboard))
+        .route("/app", get(get_dashboard))
+        .route("/app/:community", get(get_dashboard))
+        // Calendar feeds (the ICS export layer).
         .route("/calendar/:community.ics", get(get_calendar))
         .route("/calendar/:community/schedule.ics", get(get_schedule_feed))
         .route("/calendar/:community/runs.ics", get(get_runs_feed))
@@ -48,9 +52,11 @@ pub fn router(state: State) -> axum::Router {
         .route("/v1/contracts", post(add_contract))
         .route("/v1/manifests", post(put_manifest))
         .route("/v1/calendars", post(add_calendar))
+        .route("/v1/agents", post(upsert_agent))
         // Introspection.
         .route("/healthz", get(healthz))
         .route("/v1/communities/:community/state", get(get_state))
+        .route("/v1/communities/:community/agents", get(get_agents))
         .route(
             "/v1/communities/:community/lineage/:schedule_id",
             get(get_lineage),
@@ -60,6 +66,54 @@ pub fn router(state: State) -> axum::Router {
 
 async fn healthz() -> &'static str {
     "ok"
+}
+
+/// Serve the visual calendar dashboard (the first-class UI). The HTML is
+/// embedded; it fetches `/v1/communities/<c>/state` for live data.
+async fn get_dashboard(AppState(state): AppState<State>) -> Response {
+    let community = state.default_community();
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        dashboard_html(&community),
+    )
+        .into_response()
+}
+
+async fn upsert_agent(
+    AppState(state): AppState<State>,
+    Json(agent): Json<almanac_bridge::model::Agent>,
+) -> Response {
+    state.upsert_agent(agent).await;
+    (StatusCode::CREATED, "created").into_response()
+}
+
+async fn get_agents(
+    AppState(state): AppState<State>,
+    Path(community): Path<String>,
+) -> Json<Vec<almanac_bridge::model::Agent>> {
+    Json(state.agents_for(&community).await)
+}
+
+/// Build the dashboard HTML by inlining the CSS + JS and substituting the
+/// community id. Everything is `include_str!`d at compile time — no external
+/// assets to ship.
+fn dashboard_html(community: &str) -> String {
+    const HTML: &str = include_str!("dashboard/index.html");
+    const STYLES: &str = include_str!("dashboard/styles.css");
+    const SCRIPT: &str = include_str!("dashboard/app.js");
+    // Escape the community for safe HTML + JS embedding.
+    let safe = community
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "\\\"");
+    HTML.replace("__STYLES__", STYLES)
+        .replace(
+            "__SCRIPT__",
+            &format!("window.__ALMANAC_COMMUNITY__=\"{safe}\";\n{SCRIPT}"),
+        )
+        .replace("__COMMUNITY__", &safe.replace("\\\"", "\""))
 }
 
 async fn get_calendar(AppState(state): AppState<State>, Path(community): Path<String>) -> Response {
@@ -189,26 +243,79 @@ struct ContractRequest {
 #[derive(Debug, Serialize, serde::Deserialize)]
 pub struct StateSnapshot {
     pub community: String,
+    pub agents: Vec<almanac_bridge::model::Agent>,
     pub schedules: Vec<Schedule>,
     pub runs: Vec<Run>,
     pub contracts: Vec<Contract>,
     pub calendars: Vec<Calendar>,
+    /// schedule_id -> lineage verdicts for consuming schedules.
+    pub lineage: serde_json::Value,
 }
 
 async fn get_state(
     AppState(state): AppState<State>,
     Path(community): Path<String>,
 ) -> Json<StateSnapshot> {
+    let agents = state.agents_for(&community).await;
     let schedules = state.schedules_for(&community).await;
     let runs: Vec<Run> = state.runs_for(&community).await.into_values().collect();
     let contracts = state.contracts_for(&community).await;
     let calendars = state.calendars_for(&community).await;
+
+    // Compute lineage verdicts for every consuming schedule.
+    let manifest_store = state.manifest_store_async().await;
+    let mut lineage = serde_json::Map::new();
+    use almanac_bridge::model::ContractRole;
+    for s in &schedules {
+        let mine: Vec<Contract> = contracts
+            .iter()
+            .filter(|c| c.schedule_id == s.schedule_id && c.role == ContractRole::Consume)
+            .cloned()
+            .collect();
+        if mine.is_empty() {
+            continue;
+        }
+        let run = state
+            .runs_for(&community)
+            .await
+            .get(&s.schedule_id)
+            .cloned()
+            .unwrap_or(Run {
+                run_id: format!("view-{}", s.schedule_id),
+                schedule_id: s.schedule_id.clone(),
+                scheduled_for: chrono::Utc::now().timestamp(),
+                started_at: Some(chrono::Utc::now().timestamp()),
+                finished_at: None,
+                status: almanac_bridge::model::RunStatus::Pending,
+                error: None,
+            });
+        if let Ok(deps) = almanac_bridge::lineage::check_inputs(&manifest_store, &run, &mine).await
+        {
+            let entries: Vec<_> = deps
+                .into_iter()
+                .map(|d| {
+                    let st = match &d.satisfied {
+                        almanac_bridge::lineage::Satisfies::Ready { .. } => "ready",
+                        almanac_bridge::lineage::Satisfies::Missing => "missing",
+                        almanac_bridge::lineage::Satisfies::VersionMismatch { .. } => {
+                            "version_mismatch"
+                        }
+                    };
+                    serde_json::json!({"schema_id": d.schema_id, "state": st, "detail": d.satisfied})
+                })
+                .collect();
+            lineage.insert(s.schedule_id.clone(), serde_json::Value::Array(entries));
+        }
+    }
+
     Json(StateSnapshot {
         community,
+        agents,
         schedules,
         runs,
         contracts,
         calendars,
+        lineage: serde_json::Value::Object(lineage),
     })
 }
 

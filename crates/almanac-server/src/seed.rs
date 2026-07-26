@@ -28,6 +28,7 @@ fn daily_brief() -> Schedule {
         dtstart: NOW,
         calendar_group: "research".into(),
         color_category: Some("#3b82f6".into()),
+        owner_agent_id: None,
         created_at: NOW,
         updated_at: NOW,
     }
@@ -45,6 +46,7 @@ fn weekly_strategy() -> Schedule {
         dtstart: NOW,
         calendar_group: "strategy".into(),
         color_category: Some("#10b981".into()),
+        owner_agent_id: None,
         created_at: NOW,
         updated_at: NOW,
     }
@@ -61,6 +63,7 @@ fn nightly_index() -> Schedule {
         dtstart: NOW,
         calendar_group: "infra".into(),
         color_category: Some("#ef4444".into()),
+        owner_agent_id: None,
         created_at: NOW,
         updated_at: NOW,
     }
@@ -77,6 +80,7 @@ fn webhook_pr_review() -> Schedule {
         dtstart: NOW,
         calendar_group: "code".into(),
         color_category: Some("#8b5cf6".into()),
+        owner_agent_id: None,
         created_at: NOW,
         updated_at: NOW,
     }
@@ -168,8 +172,55 @@ fn contracts() -> Vec<Contract> {
     ]
 }
 
+/// The four demo agents — the principals that own the schedules.
+fn demo_agents() -> Vec<almanac_bridge::model::Agent> {
+    use almanac_bridge::model::Agent;
+    const T: i64 = 1_700_000_000;
+    vec![
+        Agent {
+            agent_id: "research-bot".into(),
+            name: "Research Bot".into(),
+            avatar: Some("🔬".into()),
+            kind: "cron".into(),
+            community_id: "demo".into(),
+            description: Some("Daily research brief agent.".into()),
+            created_at: T,
+        },
+        Agent {
+            agent_id: "strategist".into(),
+            name: "Strategist".into(),
+            avatar: Some("♟️".into()),
+            kind: "cron".into(),
+            community_id: "demo".into(),
+            description: Some("Weekly strategy draft agent.".into()),
+            created_at: T,
+        },
+        Agent {
+            agent_id: "index-runner".into(),
+            name: "Index Runner".into(),
+            avatar: Some("📇".into()),
+            kind: "cron".into(),
+            community_id: "demo".into(),
+            description: Some("Nightly vector index rebuild.".into()),
+            created_at: T,
+        },
+        Agent {
+            agent_id: "code-reviewer".into(),
+            name: "Code Reviewer".into(),
+            avatar: Some("👀".into()),
+            kind: "webhook".into(),
+            community_id: "demo".into(),
+            description: Some("On PR merge review summary.".into()),
+            created_at: T,
+        },
+    ]
+}
+
 /// Seed the demo community into `state`.
 pub async fn seed_demo(state: &State) {
+    for agent in demo_agents() {
+        state.upsert_agent(agent).await;
+    }
     for sched in [
         daily_brief(),
         weekly_strategy(),

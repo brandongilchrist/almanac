@@ -36,7 +36,7 @@ use tracing::info;
 ///
 /// Seeds the demo community if `config.seed_demo` is true.
 pub async fn run(config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let state = State::new();
+    let state = State::with_default_community(config.default_community.clone());
     if config.seed_demo {
         seed::seed_demo(&state).await;
         info!(community = %config.default_community, "seeded demo community");

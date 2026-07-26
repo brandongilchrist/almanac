@@ -191,3 +191,125 @@ async fn ingestion_then_feed_reflects_new_state() {
     assert!(flat.contains("SUMMARY:✅ Hourly heartbeat"));
     assert!(flat.contains("STATUS:CONFIRMED"));
 }
+
+#[tokio::test]
+async fn dashboard_serves_html_and_references_community() {
+    let app = seeded_app().await;
+    let res = app
+        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    assert_eq!(
+        res.headers().get("content-type").unwrap(),
+        "text/html; charset=utf-8"
+    );
+    let body = to_bytes(res.into_body(), 1 << 20).await.unwrap();
+    let html = String::from_utf8_lossy(&body);
+    assert!(html.contains("<!DOCTYPE html>"));
+    assert!(html.contains("Almanac"));
+    // The dashboard JS bootstraps from the community id.
+    assert!(html.contains("window.__ALMANAC_COMMUNITY__"));
+    assert!(html.contains("Agent dependency graph"));
+}
+
+#[tokio::test]
+async fn state_snapshot_includes_agents_and_lineage() {
+    let app = seeded_app().await;
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/communities/demo/state")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = to_bytes(res.into_body(), 1 << 20).await.unwrap();
+    let snap: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(
+        snap["agents"].as_array().unwrap().len() >= 4,
+        "demo seeds 4 agents"
+    );
+    assert!(
+        snap["lineage"]["weekly-strategy"].is_array(),
+        "lineage verdict present"
+    );
+    // The weekly-strategy consumes research-brief, manifest is fresh → ready.
+    let deps = snap["lineage"]["weekly-strategy"].as_array().unwrap();
+    assert_eq!(deps.len(), 1);
+    assert_eq!(deps[0]["state"], "ready");
+    assert_eq!(deps[0]["schema_id"], "research-brief");
+}
+
+#[tokio::test]
+async fn agents_endpoint_lists_registered_agents() {
+    let app = seeded_app().await;
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/communities/demo/agents")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = to_bytes(res.into_body(), 1 << 20).await.unwrap();
+    let agents: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let ids: Vec<&str> = agents
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a["agent_id"].as_str().unwrap())
+        .collect();
+    assert!(ids.contains(&"research-bot"));
+    assert!(ids.contains(&"strategist"));
+}
+
+#[tokio::test]
+async fn register_agent_via_post_then_it_appears() {
+    let app = seeded_app().await;
+    let body = serde_json::json!({
+        "agent_id": "my-new-agent",
+        "name": "My New Agent",
+        "avatar": "🛰️",
+        "kind": "on-demand",
+        "community_id": "demo",
+        "description": "Registered via POST",
+        "created_at": 1700000000
+    });
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/agents")
+                .header("content-type", "application/json")
+                .body(Body::from(body.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::CREATED);
+
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/communities/demo/agents")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let agents: serde_json::Value =
+        serde_json::from_slice(&to_bytes(res.into_body(), 1 << 20).await.unwrap()).unwrap();
+    let ids: Vec<&str> = agents
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a["agent_id"].as_str().unwrap())
+        .collect();
+    assert!(ids.contains(&"my-new-agent"));
+}

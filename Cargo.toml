@@ -3,7 +3,9 @@ resolver = "2"
 members = [
     "crates/almanac-bridge",
     "crates/almanac-server",
+    "crates/almanac-mcp",
     "crates/almanac-cli",
+    "src-tauri",
 ]
 
 [workspace.package]

@@ -1,8 +1,9 @@
 //! Core Almanac data model.
 //!
-//! Five entities, faithful to `docs/10_PLAN.md` § "Event kinds" and
+//! Six entities, faithful to `docs/10_PLAN.md` § "Event kinds" and
 //! § "Resolved data-model decisions":
 //!
+//! - [`Agent`] — an agent identity (the principal owning schedules/runs).
 //! - [`Schedule`] — the recurring cron definition (the plan).
 //! - [`Run`] — one concrete execution of a schedule (produces a manifest).
 //! - [`Manifest`] — an artifact's materialization record (the lineage primitive).
@@ -12,6 +13,30 @@
 //! All types are `Serialize`/`Deserialize` and round-trip through `serde_json`.
 
 use serde::{Deserialize, Serialize};
+
+/// An agent identity — the principal that owns schedules and produces manifests.
+///
+/// Agents are first-class citizens in Almanac (analogous to users in a comms
+/// app): every schedule and run is attributed to one. Agents are registered
+/// once and referenced by `agent_id` thereafter, so the calendar UI can group
+/// work by the agent that does it and show an "agents panel".
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Agent {
+    /// Stable id (slug). Becomes the schedule's `owner_agent_id`.
+    pub agent_id: String,
+    /// Display name shown in the UI.
+    pub name: String,
+    /// Optional avatar URL / emoji.
+    pub avatar: Option<String>,
+    /// Free-form kind: `cron`, `webhook`, `on-demand`, `mcp-tool`, …
+    pub kind: String,
+    /// Owning community.
+    pub community_id: String,
+    /// Optional description / role.
+    pub description: Option<String>,
+    /// Registration time (unix seconds).
+    pub created_at: i64,
+}
 
 /// A cron definition as seen by Almanac — a mirror of a workflow def with
 /// calendar-render hints (color, summary template, calendar subgroup).
@@ -38,6 +63,8 @@ pub struct Schedule {
     pub calendar_group: String,
     /// Suggested color for clients that map categories → colors.
     pub color_category: Option<String>,
+    /// Agent that owns this schedule (agent-native attribution). Optional for back-compat.
+    pub owner_agent_id: Option<String>,
     /// Creation time (unix seconds).
     pub created_at: i64,
     /// Last update time (unix seconds).
@@ -192,6 +219,7 @@ mod tests {
             dtstart: 1_700_000_000,
             calendar_group: "research".into(),
             color_category: Some("#3b82f6".into()),
+            owner_agent_id: None,
             created_at: 1_700_000_000,
             updated_at: 1_700_000_000,
         }

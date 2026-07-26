@@ -124,6 +124,7 @@ mod tests {
             dtstart: 1_700_000_000,
             calendar_group: "research".into(),
             color_category: None,
+            owner_agent_id: None,
             created_at: 1_700_000_000,
             updated_at: 1_700_000_000,
         }

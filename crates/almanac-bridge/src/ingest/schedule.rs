@@ -73,6 +73,8 @@ pub fn schedule_from_workflow_def(event: &SourceEvent) -> Result<Schedule, Inges
 
     let color_category = event.first_tag_value("color").map(str::to_owned);
 
+    let owner_agent_id = event.first_tag_value("agent").map(str::to_owned);
+
     Ok(Schedule {
         schedule_id,
         community_id,
@@ -83,6 +85,7 @@ pub fn schedule_from_workflow_def(event: &SourceEvent) -> Result<Schedule, Inges
         dtstart,
         calendar_group,
         color_category,
+        owner_agent_id,
         created_at: event.created_at,
         updated_at: event.created_at,
     })

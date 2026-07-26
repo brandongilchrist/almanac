@@ -1,18 +1,97 @@
 # Almanac
 
-> A calendar for agents and their artifacts.
-> Subscribe once in any calendar app; every scheduled agent job, the artifact
-> it produces, and the artifacts it depends on show up as events — with green
-> checks when inputs are ready, red marks when they're not.
+> A calendar for agents and their artifacts — agent-native, first-class.
+> Agents register themselves, own schedules, declare contracts, and check
+> lineage. The same data lands in any calendar app via standard iCalendar.
 
 **[Website](https://plush-island-rj2a.here.now/)** ·
 **[Live demo](https://plush-island-rj2a.here.now/demo/index.html)** ·
-**[GitHub](https://github.com/brandongilchrist/almanac)**
+**[GitHub](https://github.com/brandongilchrist/almanac)** ·
+**[Install](#install)**
 
-Almanac turns scheduled agent work into **standard iCalendar feeds**
-(`RFC 5545` / `RFC 7986` / `RFC 9253`). It is **not** a new calendar UI, **not**
-a new cron engine, and **not** a new agent runtime. It is the missing
-**planning + lineage view** for agent work.
+Almanac is **agent-native**: any MCP-capable client (Claude Desktop, ZCode,
+Goose) drives it as a first-class citizen. Agents are principals with
+identities, not invisible `.ics` writers. The differentiating IP is the
+**agent dependency graph** — the live "✅ my inputs are ready / ❌ they're not"
+lineage DAG — rendered in a visual calendar surface and exported to any
+calendar client via standard iCalendar (`RFC 5545` / `7986` / `9253`).
+
+It does for agent work what Dagster and Palantir Foundry do for data
+pipelines: artifact manifests + lineage checkmarks. But driven by agents
+themselves, over MCP, and rendered as the calendar you already use.
+
+---
+
+## Three layers
+
+| Layer | What | Status |
+|---|---|---|
+| **The product** (this is the bet) | Visual calendar web UI (the DAG + agents panel) + native desktop app (Tauri) + MCP server. Agents are first-class. | ✅ v0.1 |
+| **The core** (open-source library) | `almanac-bridge`: data model, lineage engine, ICS renderer. Embeddable. | ✅ |
+| **The export** (ICS bridge) | Standard iCalendar feeds → Google/Apple/Outlook. Poll-based; latency documented honestly. | ✅ |
+
+---
+
+## Install
+
+### Desktop app (no terminal)
+
+Download `Almanac.dmg` (macOS) / `.msi` (Windows) / `.AppImage` (Linux) from
+[Releases](https://github.com/brandongilchrist/almanac/releases). Double-click
+→ the calendar appears.
+
+### CLI / server / MCP (one line)
+
+```bash
+curl -fsSL https://almanac.dev/install.sh | bash
+```
+
+Or with Homebrew:
+
+```bash
+brew install brandongilchrist/almanac/almanac
+```
+
+Or from source (Rust 1.88+):
+
+```bash
+cargo install --path crates/almanac-cli
+cargo install --path crates/almanac-server
+cargo install --path crates/almanac-mcp
+```
+
+---
+
+## Quick start
+
+```bash
+# Run the server + open the visual calendar in your browser.
+almanac serve
+# → http://localhost:8787   (the dashboard: DAG, agents panel, subscribe)
+
+# Or render the demo feed to stdout.
+almanac demo > demo.ics
+```
+
+### Wire an agent in (MCP)
+
+`almanac-mcp` speaks MCP over stdio. Point Claude Desktop / ZCode / Goose at it:
+
+```jsonc
+// claude_desktop_config.json
+{
+  "mcpServers": {
+    "almanac": {
+      "command": "almanac-mcp",
+      "env": { "ALMANAC_MCP_SEED": "1" }
+    }
+  }
+}
+```
+
+Then ask your agent: *"Use Almanac to show me the dependency graph for the demo
+community."* See [`docs/40_AGENT_NATIVE.md`](docs/40_AGENT_NATIVE.md) for the
+full set of 9 MCP tools and a complete agent flow.
 
 The hard IP is the **data model**: artifact manifests + lineage (the
 dependency-checkmark relationship between "this job needs that artifact"),

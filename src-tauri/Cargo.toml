@@ -1,0 +1,26 @@
+[package]
+name = "almanac-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Almanac desktop app — double-click to run the agent-native calendar."
+
+[[bin]]
+name = "almanac-app"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+almanac-server = { path = "../crates/almanac-server" }
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[features]
+# This feature is used for production builds where `devtools` should be disabled.
+default = []
