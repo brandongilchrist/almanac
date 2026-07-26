@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Almanac — Live Demo</title>
+<meta name="description" content="Interactive demo: toggle agent run states and watch the iCalendar feed update live, with dependency checkmarks." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="demo.css" />
+</head>
+<body>
+<div class="demo-page">
+
+<header class="demo-nav">
+  <a href="../website/index.html" class="back">← Back to site</a>
+  <span class="demo-title">Almanac &middot; Live Demo</span>
+  <button id="reset" class="btn-mini">Reset</button>
+</header>
+
+<main class="demo-main">
+
+  <!-- LEFT: controls -->
+  <section class="panel panel-controls">
+    <h2>Schedules</h2>
+    <p class="hint">Toggle each job's run state and watch the feed + lineage update live. This is the same rendering the Rust server produces — re-implemented in JS so the demo runs with no backend.</p>
+
+    <div id="schedule-list"></div>
+
+    <h2 class="mt">Lineage contract</h2>
+    <div class="contract-box">
+      <code>weekly-strategy <strong>consumes</strong> research-brief</code>
+      <p class="contract-detail">The weekly strategy depends on the daily brief's output. Toggle the daily brief's state and a manifest to see the checkmark flip ✅ → ❌.</p>
+      <label class="switch-row">
+        <input type="checkbox" id="manifest-present" checked />
+        <span>Daily brief produced a manifest</span>
+      </label>
+      <label class="switch-row">
+        <input type="checkbox" id="version-ok" checked />
+        <span>Manifest version ≥ consumer min (v2)</span>
+      </label>
+    </div>
+  </section>
+
+  <!-- CENTER: rendered calendar -->
+  <section class="panel panel-calendar">
+    <div class="panel-head">
+      <h2>Calendar preview</h2>
+      <span class="badge" id="event-count">0 events</span>
+    </div>
+    <div id="calendar-render" class="cal-render"></div>
+  </section>
+
+  <!-- RIGHT: raw ICS -->
+  <section class="panel panel-ics">
+    <div class="panel-head">
+      <h2>Raw ICS feed</h2>
+      <button id="copy" class="btn-mini">Copy</button>
+    </div>
+    <pre id="ics-output" class="ics-output"></pre>
+    <p class="subscribe-note">
+      Subscribe URL: <code>http://localhost:8787/calendar/demo.ics</code>
+    </p>
+  </section>
+
+</main>
+
+<footer class="demo-foot">
+  <p>This demo mirrors the Rust <code>almanac-bridge</code> rendering 1:1 (RRULE, STATUS, emoji SUMMARY, RELATED-TO;RELTYPE=DEPENDS-ON). Run <code>almanac-server</code> for the real feed.</p>
+</footer>
+
+</div>
+<script src="demo.js"></script>
+</body>
+</html>

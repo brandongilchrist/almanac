@@ -1,0 +1,47 @@
+# Almanac CI — runs on every push to the local Gitea via Gitea Actions.
+# Mirrors scripts/ci.sh exactly. Uses zero GitHub Actions minutes.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    container:
+      image: rust:1.83-bookworm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: rustup component add (fmt, clippy)
+        run: rustup component add rustfmt clippy
+
+      - name: Format check
+        run: cargo fmt --all --check
+
+      - name: Clippy (-D warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test (workspace)
+        run: cargo test --workspace
+
+      - name: Release build
+        run: cargo build --release --workspace
+
+      - name: Smoke (demo feed validates)
+        run: |
+          ./target/release/almanac demo > /tmp/demo.ics
+          ./target/release/almanac validate /tmp/demo.ics

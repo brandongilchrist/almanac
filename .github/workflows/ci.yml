@@ -1,0 +1,39 @@
+# GitHub Actions mirror of the local Gitea pipeline (.gitea/workflows/ci.yml)
+# and scripts/ci.sh. Kept in sync so the same gate runs on GitHub if the repo
+# is mirrored there. Local development uses the Gitea pipeline (sdlc/) to
+# avoid consuming GitHub Actions minutes.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format check
+        run: cargo fmt --all --check
+
+      - name: Clippy (-D warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test (workspace)
+        run: cargo test --workspace
+
+      - name: Release build
+        run: cargo build --release --workspace
+
+      - name: Smoke (demo feed validates)
+        run: |
+          ./target/release/almanac demo > /tmp/demo.ics
+          ./target/release/almanac validate /tmp/demo.ics

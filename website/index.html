@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Almanac — A calendar for agents and their artifacts</title>
+<meta name="description" content="Subscribe once in any calendar app; every scheduled agent job, the artifact it produces, and the artifacts it depends on show up as events — with green checks when inputs are ready, red marks when they're not." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f172a'/><text x='50' y='68' font-size='58' text-anchor='middle' fill='%2310b981' font-family='Geist'>A</text></svg>" />
+</head>
+<body>
+<div class="page">
+
+<!-- NAV -->
+<header class="nav">
+  <a href="#top" class="brand">
+    <span class="brand-mark" aria-hidden="true">A</span>
+    <span class="brand-name">Almanac</span>
+  </a>
+  <nav class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#lineage">Lineage</a>
+    <a href="#latency">Latency</a>
+    <a href="#docs">Docs</a>
+  </nav>
+  <div class="nav-actions">
+    <a class="btn btn-ghost" href="../demo/index.html">Live demo</a>
+    <a class="btn btn-primary" href="#quickstart">Get started</a>
+  </div>
+</header>
+
+<!-- HERO (asymmetric split, left-aligned) -->
+<section class="hero" id="top">
+  <div class="hero-copy">
+    <p class="eyebrow"><span class="dot"></span> iCalendar &middot; RFC 5545 / 7986 / 9253</p>
+    <h1 class="display">A calendar for <em>agents</em> and their artifacts.</h1>
+    <p class="lede">
+      Subscribe once in any calendar app. Every scheduled agent job, the
+      artifact it produces, and the artifacts it depends on show up as
+      events &mdash; with green checks when inputs are ready, red marks
+      when they're not.
+    </p>
+    <div class="hero-cta">
+      <a class="btn btn-primary btn-lg" href="#quickstart">
+        Start in 60 seconds
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="btn btn-ghost btn-lg" href="../demo/index.html">View live demo</a>
+    </div>
+    <p class="hero-note">No new app to install. Uses the calendar you already have.</p>
+  </div>
+
+  <!-- Hero asset: a faux calendar week showing lineage checkmarks -->
+  <div class="hero-asset" aria-label="Sample calendar week rendered by Almanac">
+    <div class="cal-frame">
+      <div class="cal-head">
+        <span class="cal-title">Research &middot; this week</span>
+        <span class="cal-sub">almanac.ics</span>
+      </div>
+      <div class="cal-grid">
+        <div class="cal-day"><span class="dname">Mon</span>
+          <div class="ev ev-ok">
+            <span class="ev-emoji">✅</span>
+            <span class="ev-name">Daily research brief</span>
+            <span class="ev-meta">09:00 &middot; succeeded</span>
+          </div>
+          <div class="ev ev-run">
+            <span class="ev-emoji">⏳</span>
+            <span class="ev-name">Weekly strategy</span>
+            <span class="ev-meta">10:00 &middot; inputs ✅</span>
+          </div>
+        </div>
+        <div class="cal-day"><span class="dname">Tue</span>
+          <div class="ev ev-ok">
+            <span class="ev-emoji">✅</span>
+            <span class="ev-name">Daily research brief</span>
+          </div>
+        </div>
+        <div class="cal-day"><span class="dname">Wed</span>
+          <div class="ev ev-bad">
+            <span class="ev-emoji">❌</span>
+            <span class="ev-name">Nightly index rebuild</span>
+            <span class="ev-meta">02:00 &middot; OOM</span>
+          </div>
+          <div class="ev ev-ok">
+            <span class="ev-emoji">✅</span>
+            <span class="ev-name">Daily research brief</span>
+          </div>
+        </div>
+        <div class="cal-day"><span class="dname">Thu</span>
+          <div class="ev ev-pend">
+            <span class="ev-emoji">🟡</span>
+            <span class="ev-name">Daily research brief</span>
+          </div>
+        </div>
+      </div>
+      <div class="cal-foot">
+        <span class="legend-item"><span class="lg lg-ok"></span> ready</span>
+        <span class="legend-item"><span class="lg lg-bad"></span> failed</span>
+        <span class="legend-item"><span class="lg lg-pend"></span> pending</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM / WEDGE -->
+<section class="section" id="lineage">
+  <div class="section-head">
+    <p class="kicker">The wedge</p>
+    <h2 class="h2">Dependency checkmarks, for agent artifacts.</h2>
+    <p class="section-lede">
+      Each scheduled job declares its inputs and outputs. When it finishes,
+      Almanac records a <strong>manifest</strong> &mdash; content hash,
+      schema version, commit SHA. When a downstream job is about to run, it
+      checks: <em>does a materialized manifest exist for each of my inputs?</em>
+    </p>
+  </div>
+
+  <div class="triple">
+    <div class="card">
+      <div class="card-icon icon-ok">✅</div>
+      <h3>Ready</h3>
+      <p>A fresh manifest exists and its version matches the consumer's minimum.</p>
+      <code class="snip">STATUS:CONFIRMED</code>
+    </div>
+    <div class="card">
+      <div class="card-icon icon-bad">❌</div>
+      <h3>Missing</h3>
+      <p>No manifest within the freshness window. The job refuses to start.</p>
+      <code class="snip">STATUS:CANCELLED</code>
+    </div>
+    <div class="card">
+      <div class="card-icon icon-warn">⚠️</div>
+      <h3>Version mismatch</h3>
+      <p>A manifest exists but its schema version is older than required.</p>
+      <code class="snip">skipped:version_mismatch</code>
+    </div>
+  </div>
+
+  <div class="callout">
+    <p>
+      This is <strong>data lineage</strong> &mdash; the thing Palantir Foundry
+      and Dagster do for data pipelines &mdash; applied to <strong>agent
+      artifacts</strong>. Encoded as <code>RELATED-TO;RELTYPE=DEPENDS-ON</code>
+      (RFC 9253) so the relationship survives every calendar sync, with state
+      mirrored into <code>STATUS</code> + emoji <code>SUMMARY</code> so every
+      client renders it.
+    </p>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section section-alt" id="how">
+  <div class="section-head">
+    <p class="kicker">How it works</p>
+    <h2 class="h2">One URL. Standard protocols. No install.</h2>
+  </div>
+
+  <div class="diagram">
+    <div class="tier">
+      <div class="tier-label">Any calendar client</div>
+      <div class="tier-body">Google &middot; Apple &middot; Outlook &middot; DAVx⁵ &middot; Thunderbird</div>
+      <div class="tier-note">Subscribes to one URL. Just renders events.</div>
+    </div>
+    <div class="arrow" aria-hidden="true">↑ subscribes (one-way ICS feed)</div>
+    <div class="tier tier-accent">
+      <div class="tier-label">Almanac <span class="tag">Rust</span></div>
+      <div class="tier-body">Reads events &middot; renders RFC 5545/7986/9253 &middot; encodes lineage</div>
+      <div class="tier-note"><code>/calendar/&lt;community&gt;.ics</code> &middot; <code>/runs.ics</code> &middot; <code>/schedule.ics</code></div>
+    </div>
+    <div class="arrow" aria-hidden="true">↑ reads events</div>
+    <div class="tier">
+      <div class="tier-label">Event source</div>
+      <div class="tier-body">Buzz relay, or any Nostr event producer</div>
+      <div class="tier-note">The source of truth. Almanac is a derived view.</div>
+    </div>
+  </div>
+</section>
+
+<!-- QUICK START -->
+<section class="section" id="quickstart">
+  <div class="section-head">
+    <p class="kicker">Quick start</p>
+    <h2 class="h2">Running in under a minute.</h2>
+  </div>
+
+  <div class="terminals">
+    <div class="terminal">
+      <div class="term-head"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span><span class="term-title">run the server</span></div>
+<pre><code><span class="c-dim">$</span> cargo build --release
+<span class="c-dim">$</span> ./target/release/almanac-server
+<span class="c-ok">→</span> almanac server listening on 0.0.0.0:8787
+<span class="c-ok">→</span> seeded demo community `demo`
+<span class="c-dim">$</span> curl localhost:8787/calendar/demo.ics | head
+<span class="c-str">BEGIN:VCALENDAR</span>
+<span class="c-str">BEGIN:VEVENT</span>
+<span class="c-str">SUMMARY:✅ Daily research brief</span>
+<span class="c-str">STATUS:CONFIRMED</span>
+<span class="c-str">RRULE:FREQ=DAILY;BYHOUR=9</span></code></pre>
+    </div>
+
+    <div class="terminal">
+      <div class="term-head"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span><span class="term-title">the CLI</span></div>
+<pre><code><span class="c-dim">$</span> almanac subscribe --community research
+<span class="c-str">http://localhost:8787/calendar/research.ics</span>
+
+<span class="c-dim">$</span> almanac check weekly-strategy
+<span class="c-ok">Lineage for `weekly-strategy`:</span>
+  <span class="c-ok">✅ ready (v3)</span>  research-brief
+  <span class="c-dim">  ← produced by `daily-brief`</span>
+
+<span class="c-dim">$</span> almanac declare --schedule weekly \
+    --role consume --schema research-brief</code></pre>
+    </div>
+  </div>
+
+  <p class="centered">
+    Then paste the URL into any calendar app. Done.
+  </p>
+</section>
+
+<!-- LATENCY (honest disclaimer, prominent) -->
+<section class="section section-warn" id="latency">
+  <div class="section-head">
+    <p class="kicker kicker-warn">Honest limits</p>
+    <h2 class="h2">Calendar latency is real. We won't pretend otherwise.</h2>
+    <p class="section-lede">
+      ICS feeds are poll-based, and clients poll on <em>their</em> schedule,
+      not yours. This is a property of calendar clients, not Almanac.
+    </p>
+  </div>
+
+  <div class="latency-table">
+    <table>
+      <thead><tr><th>Client</th><th>Typical poll</th><th>Worst seen</th></tr></thead>
+      <tbody>
+        <tr><td>Google Calendar</td><td>12&ndash;24 h</td><td class="bad">up to ~5 days</td></tr>
+        <tr><td>Apple Calendar (iCloud)</td><td>~1 h</td><td>a few hours</td></tr>
+        <tr><td>Outlook.com</td><td>~3 h</td><td>~1 day</td></tr>
+        <tr><td>DAVx⁵ → local CalDAV</td><td>minutes</td><td>minutes</td></tr>
+        <tr><td>Thunderbird</td><td>minutes</td><td>minutes</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <p>
+      <strong>For near-real-time, use the CalDAV path (Phase 2)</strong> or
+      point a DAVx⁵-style client at a local CalDAV server. The ICS feed is
+      the universal baseline &mdash; not the low-latency option.
+    </p>
+  </div>
+</section>
+
+<!-- EMOJI LEGEND -->
+<section class="section" id="legend">
+  <div class="section-head">
+    <p class="kicker">The legend</p>
+    <h2 class="h2">Universally readable, even on an Apple Watch.</h2>
+  </div>
+  <div class="legend-grid">
+    <div class="leg"><span class="leg-emoji">🟡</span><div><strong>pending</strong><span>scheduled, hasn't run</span></div></div>
+    <div class="leg"><span class="leg-emoji">⏳</span><div><strong>running</strong><span>currently executing</span></div></div>
+    <div class="leg"><span class="leg-emoji">✅</span><div><strong>succeeded</strong><span>ran, manifest verified</span></div></div>
+    <div class="leg"><span class="leg-emoji">❌</span><div><strong>failed</strong><span>ran, exited non-zero</span></div></div>
+    <div class="leg"><span class="leg-emoji">⏸</span><div><strong>skipped</strong><span>inputs missing, refused</span></div></div>
+  </div>
+</section>
+
+<!-- DOCS / FOOTER -->
+<section class="section section-alt" id="docs">
+  <div class="docs-grid">
+    <div>
+      <p class="kicker">Documentation</p>
+      <h2 class="h2">The full design, in four docs.</h2>
+      <p class="section-lede">
+        The data model, kinds, ICS contract, and phases are all written down
+        before any code. Read in order.
+      </p>
+    </div>
+    <ul class="doc-list">
+      <li><a href="../docs/00_OVERVIEW.md"><span>00</span> Overview &mdash; what Almanac is and is not</a></li>
+      <li><a href="../docs/10_PLAN.md"><span>10</span> Plan &mdash; data model, kinds, ICS contract</a></li>
+      <li><a href="../docs/20_META_PLAN.md"><span>20</span> Meta-plan &mdash; how to build it</a></li>
+      <li><a href="../docs/30_AUTONOMOUS_EXECUTION.md"><span>30</span> Execution spec</a></li>
+      <li><a href="../README.md"><span>★</span> README &mdash; quick start + API</a></li>
+    </ul>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div>
+      <a href="#top" class="brand">
+        <span class="brand-mark" aria-hidden="true">A</span>
+        <span class="brand-name">Almanac</span>
+      </a>
+      <p class="footer-tag">A calendar for agents and their artifacts.</p>
+    </div>
+    <div class="footer-meta">
+      <p>MIT licensed. Rust. Standard protocols only.</p>
+      <p>Built as a derived view &mdash; never the source of truth.</p>
+    </div>
+  </div>
+</footer>
+
+</div>
+<script src="scripts.js" defer></script>
+</body>
+</html>

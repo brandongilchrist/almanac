@@ -1,0 +1,74 @@
+# Almanac local SDLC — Gitea (git server + web UI) + Gitea Actions runner.
+#
+# Runs entirely on your machine via Docker. No GitHub Actions minutes used.
+# The CI pipeline (fmt + clippy + test + build) runs on every push to the
+# local Gitea, mirroring scripts/ci.sh.
+#
+# Usage:
+#   sdlc/up.sh         # start Gitea + runner, create the almanac repo
+#   sdlc/push.sh       # commit + push local code to local Gitea
+#   open http://localhost:3000   # Gitea web UI (user: almanac / pass: almanac)
+#   sdlc/down.sh       # stop everything (data persists in sdlc/gitea-data/)
+
+services:
+  gitea:
+    image: gitea/gitea:1.23
+    container_name: almanac-gitea
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      GITEA__server__DOMAIN: localhost
+      GITEA__server__ROOT_URL: http://localhost:3000/
+      GITEA__server__SSH_PORT: "2222"
+      GITEA__security__INSTALL_LOCK: "true"
+      # Auto-create the admin user on first boot.
+      GITEA__admin__USER: almanac
+      GITEA__admin__PASSWD: almanac
+      GITEA__admin__EMAIL: dev@almanac.local
+      # Enable the Actions UI + runner registration endpoint.
+      GITEA__actions__ENABLED: "true"
+    volumes:
+      - ./gitea-data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "3000:3000"   # web UI + HTTP git
+      - "2222:22"     # SSH git
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/v1/version"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  runner:
+    image: gitea/act_runner:0.2.11
+    container_name: almanac-runner
+    depends_on:
+      gitea:
+        condition: service_healthy
+    environment:
+      # Register against the Gitea instance using the token below.
+      CONFIG_FILE: /config.yaml
+      GITEA_INSTANCE_URL: http://gitea:3000
+      GITEA_RUNNER_REGISTRATION_TOKEN: "ALMANAC_DEV_TOKEN_CHANGE_ME"
+    volumes:
+      - ./runner-config.yaml:/config.yaml:ro
+      - ./runner-data:/data
+      # Docker socket so the runner can spin up job containers.
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ ! -f /data/.registered ]; then
+          act_runner register --no-interactive \
+            --instance "$${GITEA_INSTANCE_URL}" \
+            --token "$${GITEA_RUNNER_REGISTRATION_TOKEN}" \
+            --name almanac-runner --labels ubuntu-latest=docker://catthehacker/ubuntu:act-latest \
+          && touch /data/.registered
+        fi
+        act_runner daemon
+
+volumes:
+  gitea-data: {}
+  runner-data: {}

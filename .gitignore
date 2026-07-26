@@ -1,0 +1,28 @@
+# Rust
+/target
+**/target
+Cargo.lock.bak
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local runtime artifacts
+*.ics
+!/demo/*.ics
+!/docs/**/*.ics
+.env
+.env.local
+
+# Local SDLC data (Gitea volumes, etc.)
+sdlc/gitea-data/
+sdlc/runner-data/
+
+# Logs
+*.log
+RUN_LOG.md
+BLOCKERS.md

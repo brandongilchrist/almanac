@@ -1,0 +1,18 @@
+# act_runner config. Mirrors the defaults; pinned here so the SDLC is
+# reproducible. Capacity = 1 concurrent job (fine for local dev).
+log:
+  level: info
+runner:
+  capacity: 1
+  timeout: 30m
+  insecure: false
+  fetch_timeout: 5s
+  fetch_interval: 2s
+cache:
+  enabled: true
+  dir: /data/cache
+container:
+  network: sdlc_default
+  privileged: false
+  options:
+  workdir_parent: /data/workspace
